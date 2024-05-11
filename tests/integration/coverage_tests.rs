@@ -39,6 +39,70 @@ fn no_tests() {
 }
 
 #[test]
+fn coverage_include_uri() {
+  let test_name = "include_uri";
+  let extension = "ts";
+
+  let context = TestContext::default();
+  let tempdir = context.temp_dir();
+  let tempdir = tempdir.path().join("cov");
+
+  let output = context
+    .new_command()
+    .args_vec(vec![
+      "test".to_string(),
+      "--quiet".to_string(),
+      "--allow-read".to_string(),
+      format!("--coverage={}", tempdir),
+      format!("coverage/{test_name}/run_test.{extension}"),
+    ])
+    .run();
+
+  output.assert_exit_code(0);
+  output.skip_output_check();
+
+  let output = context
+    .new_command()
+    .args_vec(vec![
+      "coverage".to_string(),
+      format!(
+        "--include=foo://{}/coverage/{test_name}/run.{extension}",
+        util::testdata_path()
+      ),
+      "--detailed".to_string(),
+      format!("{}/", tempdir),
+    ])
+    .split_output()
+    .run();
+
+  assert!(output.stdout().is_empty());
+  output.assert_stderr_matches_file(
+    util::testdata_path().join("coverage/include_uri/no_files_in_report.out"),
+  );
+  output.assert_exit_code(1);
+
+  let output = context
+    .new_command()
+    .args_vec(vec![
+      "coverage".to_string(),
+      format!(
+        "--include=file://{}/coverage/{test_name}/run.{extension}",
+        util::testdata_path()
+      ),
+      "--detailed".to_string(),
+      format!("{}/", tempdir),
+    ])
+    .split_output()
+    .run();
+
+  assert!(output.stderr().is_empty());
+  output.assert_stdout_matches_file(
+    util::testdata_path().join("coverage/include_uri/test_coverage.out"),
+  );
+  output.assert_exit_code(0);
+}
+
+#[test]
 fn error_if_invalid_cache() {
   let context = TestContextBuilder::new().use_temp_cwd().build();
   let temp_dir_path = context.temp_dir().path();
